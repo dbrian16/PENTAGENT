@@ -1,8 +1,12 @@
 # AI Agent Pentest
 
-A research prototype of a multi agent LLM architecture for penetration testing. It studies how an agent can plan, remember, debate findings and backtrack through an engagement, using a simulated environment throughout.
+What happens when you give a language model the mindset of a penetration tester, not just its vocabulary? Most LLM security tools stall the moment a step fails: the model forgets what it already tried, repeats a dead end, and loses the thread of a long engagement. This project is a research prototype that tackles that head on. It models a single pentest as a team of cooperating agents that plan the next move, remember every branch they have explored, argue findings out before trusting them, and walk back from dead ends the way a human operator would.
 
-> **Academic use only.** This project is not an attack tool and has never been run against a real target. It is shipped build only: nothing reaches a real system by default, and the CLI is locked by `agentpentest/RUN_DISABLED`. Read [SECURITY.md](SECURITY.md) before using or modifying the code, and only ever test systems you are explicitly authorized to test.
+The design borrows from recent agentic AI research and assembles it into one coherent pipeline: a Planner, Executor, Perceptor reconnaissance loop that keeps raw tool noise away from the model's reasoning; an external attack tree that gives the agent a real memory and a real sense of when to give up; a small council of specialist roles that debate each hypothesis; a simulated blue team that scores how loud every action would be; and a reporting layer that turns the surviving path into a MITRE mapped write up. Everything runs in simulation, so the architecture can be studied, tested, and extended without ever touching a live system.
+
+It is built to be read as much as run. Each module is small, documented, and wired to the next through a clean seam, so the whole flow from recon to report can be followed end to end.
+
+> **Academic use only.** This project is not an attack tool and has never been run against a real target. It ships build only: nothing reaches a real system by default, and the CLI is locked by `agentpentest/RUN_DISABLED`. Read [SECURITY.md](SECURITY.md) before using or modifying the code, and only ever test systems you are explicitly authorized to test.
 
 ## Architecture
 
