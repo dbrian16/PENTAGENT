@@ -1,49 +1,44 @@
 # AI Agent Pentest
 
-This is a personal research project about agentic AI architecture for penetration testing. It is not a hacking tool and it was never used against a real target. The goal was to study how a multi agent LLM system could plan, remember, debate and backtrack through an engagement, and to build that architecture end to end.
+A research prototype of a multi agent LLM architecture for penetration testing. It studies how an agent can plan, remember, debate findings and backtrack through an engagement, using a simulated environment throughout.
 
-## Academic project, not an attack tool
+> **Academic use only.** This project is not an attack tool and has never been run against a real target. It is shipped build only: nothing reaches a real system by default, and the CLI is locked by `agentpentest/RUN_DISABLED`. Read [SECURITY.md](SECURITY.md) before using or modifying the code, and only ever test systems you are explicitly authorized to test.
 
-Everything here runs in simulation. No path to a real target is wired in by default, and the repository ships with a run lock (`agentpentest/RUN_DISABLED`) that keeps the CLI from executing anything until someone deliberately removes it. Please read `SECURITY.md` before touching any of this code, and only ever point a real build at systems you are authorized to test.
+## Architecture
 
-## What it is
+| Component | Module | Purpose |
+|---|---|---|
+| Recon loop | `orchestrator.py`, `planner.py`, `executor.py`, `perceptor.py` | Planner, Executor, Perceptor loop. Raw tool output never reaches the planner. |
+| Attack tree memory | `ptt.py`, `brain.py` | Penetration Testing Tree with evidence levels. The EGATS search abandons failing branches. |
+| Debate | `swarm.py` | Several roles propose hypotheses, and agreement raises confidence. |
+| Stealth gate | `blueteam.py`, `reward.py`, `adversarial.py` | Simulated WAF scores how noisy each action would be. |
+| Post exploit | `chain.py` | Confirmed findings suggest follow on steps. |
+| Safety | `security.py`, `shellguard.py`, `throttle.py`, `sandbox.py` | Scope and SSRF guards, command validation, rate limiting, circuit breaker, snapshot and rollback. |
+| Reporting | `report.py` | MITRE mapped Markdown or JSON report with remediation notes. |
 
-A small Python package that models five phases of an agentic pentest:
-
-* Recon runs as a Planner, Executor and Perceptor loop so the model never has to read raw tool dumps.
-* A Penetration Testing Tree acts as external memory. It tracks evidence and attempt history per node so a failed branch actually gets abandoned instead of retried forever.
-* An EGATS search scores every open branch and backtracks the weak ones.
-* A small council of roles debates each finding before it is trusted (static analysis, protocol knowledge, a deterministic fuzzing stand in, optionally a local LLM).
-* A blue team agent scores how noisy an action would be against a simulated WAF, so the report can flag what would likely get caught.
-* A reporting pass turns the surviving branches into a MITRE mapped write up with remediation notes.
-
-Later passes added a few more pieces: a sandbox with snapshot and rollback, an interactive "approve every step" mode, a PoC synthesis mode for cases no wrapped tool covers, a rate limiter and circuit breaker so the agent cannot hammer a struggling service, and post exploit chaining so a confirmed finding can suggest a follow on step.
-
-All of it is offline by default. If a reasoning model is wired in at all, it has to be self hosted (Ollama). The code refuses known cloud LLM API hosts outright.
-
-## Quick start
+## Usage
 
 ```bash
 pip install -e .
-agentpentest example.com
+agentpentest example.com               # simulated run, writes report.md
+agentpentest example.com --interactive # approve each step
+agentpentest example.com -o report.json
 ```
 
-That command will refuse to run while `agentpentest/RUN_DISABLED` exists, which is the point. Delete that file only if you actually want to run the simulation locally.
+The CLI refuses to start while `agentpentest/RUN_DISABLED` exists. Remove that file only when you deliberately want to run the simulation on your own machine.
+
+Tests run without a framework:
 
 ```bash
-PYTHONPATH=. python tests/test_recon.py
+PYTHONPATH=. python tests/test_brain.py
 ```
 
-runs one of the test files directly if you do not want to install the package.
+## Design notes
 
-## Layout
-
-```
-agentpentest/      the package: planner, executor, perceptor, brain, swarm, sandbox, poc synthesis, reporting
-agentpentest/data/  the MITRE technique table and the WAF rule set
-tests/              one test file per area, plain asserts, no test framework
-```
+- Every path that could touch a real target takes an injected function. This repository only wires in simulators and mocks.
+- The reasoning model is optional and must be self hosted. Known cloud LLM API hosts are refused in code.
+- The core uses only the standard library. The MCP server needs `fastmcp`.
 
 ## License
 
-All rights reserved. See `LICENSE`.
+All rights reserved. See [LICENSE](LICENSE).
