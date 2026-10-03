@@ -1,5 +1,5 @@
 # Kali MCP server: the recon toolbox, isolated from the host.
-# The agent (MCP client) talks to this over stdio (via SSH) or SSE — never a shell.
+# The agent (MCP client) talks to this over stdio (via SSH) or SSE, never a shell.
 FROM kalilinux/kali-rolling
 
 # Only the recon tools this phase exposes. No shells-as-a-service, nothing extra.

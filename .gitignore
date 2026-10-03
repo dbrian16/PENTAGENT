@@ -15,7 +15,7 @@ venv/
 .coverage
 htmlcov/
 
-# Generated run artifacts (campaign output — never source-controlled)
+# Generated run artifacts (campaign output, never source-controlled)
 report.md
 report.json
 run.json
@@ -28,11 +28,11 @@ run.jsonl
 .DS_Store
 Thumbs.db
 
-# Local secrets — never commit these (none should ever exist in this repo)
+# Local secrets, never commit these (none should ever exist in this repo)
 .env
 .env.*
 *.pem
 *.key
 
-# NOTE: agentpentest/RUN_DISABLED is intentionally NOT ignored — it is the
+# NOTE: agentpentest/RUN_DISABLED is intentionally NOT ignored, it is the
 # build-only run lock and ships committed/enabled. See SECURITY.md.

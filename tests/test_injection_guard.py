@@ -1,6 +1,6 @@
 """Prompt-injection quarantine: security.sanitize_for_prompt/flag_injection, and its
 wiring into executor.py's LLM perception fallback (the other place raw TARGET output
-reaches an LLM prompt, alongside autonomous.py — covered in test_autonomous_advanced.py).
+reaches an LLM prompt, alongside autonomous.py, covered in test_autonomous_advanced.py).
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """Checks for the completeness pass: knowledge base, LLM in perception/planning,
 run budget, Failure Type A/B, ReconState persistence, sandbox wrapping.
-`PYTHONPATH=. python tests/test_features.py` — offline, no Ollama/Docker."""
+`PYTHONPATH=. python tests/test_features.py`, offline, no Ollama/Docker."""
 import json
 import os
 import tempfile

@@ -1,4 +1,4 @@
-"""Interactive steering (next/todo) over EGATS — offline, scripted operator."""
+"""Interactive steering (next/todo) over EGATS, offline, scripted operator."""
 from __future__ import annotations
 
 from agentpentest.brain import EGATS

@@ -1,6 +1,6 @@
 """autoloop's newer safety wiring: snapshot-guarded steps, Mode-3 PoC fallback,
 prompt-injection quarantine, and the target-safety throttle (rate limit + circuit
-breaker). All offline — nothing here opens a socket or starts a container.
+breaker). All offline. Nothing here opens a socket or starts a container.
 """
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ def test_clean_command_does_not_roll_back():
     assert "rm" not in fk.verbs(), "a clean step must not trigger a rollback"
 
 
-# --- A2: Mode 3 — synthesize_poc fallback inside the same loop --------------------
+# --- A2: Mode 3, synthesize_poc fallback inside the same loop --------------------
 
 def test_plan_can_ask_for_poc_synthesis_instead_of_a_command():
     plans = ['{"synthesize_poc":{"goal":"custom auth bypass","hint":"weird header"},'

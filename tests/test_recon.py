@@ -1,4 +1,4 @@
-"""One runnable check for the PEP loop. `python test_recon.py` — no framework."""
+"""One runnable check for the PEP loop. `python test_recon.py`, no framework."""
 from agentpentest.executor import Executor, ScopeError
 from agentpentest.orchestrator import run_recon
 from agentpentest.planner import Task

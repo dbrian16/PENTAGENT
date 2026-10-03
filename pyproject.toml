@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agentpentest"
 version = "0.1.0"
-description = "Agentic AI Pentesting framework — PEP loop, MCP toolbox, PTT/EGATS brain, multi-agent reporting. Build-only, self-hosted local AI, academic/research use only."
+description = "Agentic AI Pentesting framework. PEP loop, MCP toolbox, PTT/EGATS brain, multi-agent reporting. Build-only, self-hosted local AI, academic/research use only."
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "All rights reserved — see LICENSE"}
+license = {text = "All rights reserved, see LICENSE"}
 dependencies = []                     # core is stdlib-only
 
 [project.optional-dependencies]

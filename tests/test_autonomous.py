@@ -1,5 +1,5 @@
 """Autonomous terminal mode: guardrails + the plan/execute/perceive loop.
-`PYTHONPATH=. python tests/test_autonomous.py` — offline, no Ollama, nothing runs."""
+`PYTHONPATH=. python tests/test_autonomous.py`, offline, no Ollama, nothing runs."""
 from agentpentest import shellguard
 from agentpentest.autonomous import autoloop
 from agentpentest.llm import MockReasoner
@@ -67,7 +67,7 @@ def test_autoloop_runs_any_tool_without_wiring():
     plans = ['{"command":["whatweb","https://example.com"],"target":"example.com","rationale":"fingerprint"}']
     tr = autoloop("fingerprint example.com", SCOPE, _StubLLM(plans), execute,
                   allow_internal=True, max_steps=5)
-    # whatweb was never wired as a ToolSpec — the LLM just used it.
+    # whatweb was never wired as a ToolSpec. The LLM just used it.
     assert len(tr) == 1 and tr[0].command[0] == "whatweb"
     assert tr[0].facts.get("services") and executed
 
