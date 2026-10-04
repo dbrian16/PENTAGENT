@@ -4,12 +4,17 @@ Covers:
   SEC-2  shellguard rejects a second, out-of-scope host in the command.
   BUG-1  a real (non-mock) run refuses to fake recon when the binary is absent.
   SEC-4  assert_external(strict=True) fails closed on an unresolvable host.
+  SEC-5  AGENTPENTEST_STRICT_SSRF=1 makes the default (no strict=) fail closed.
+  SEC-6  the web dashboard refuses cross-origin / foreign-Host POSTs (CSRF).
 """
+import os
+
 from agentpentest import shellguard
 from agentpentest.executor import Executor
 from agentpentest.planner import Task
 from agentpentest.security import assert_external, SsrfError
 from agentpentest.shellguard import _host_token
+from agentpentest.webui import Handler
 
 
 def test_sec2_rejects_extra_out_of_scope_host():
@@ -60,9 +65,40 @@ def test_sec4_strict_fails_closed_on_unresolvable():
         pass
 
 
+def test_sec5_env_flag_flips_default_to_fail_closed():
+    assert_external("nonexistent.invalid")                 # no env, no strict=: ok
+    os.environ["AGENTPENTEST_STRICT_SSRF"] = "1"
+    try:
+        assert_external("nonexistent.invalid")             # env on -> fail closed
+        assert False, "strict env flag must refuse an unresolvable host by default"
+    except SsrfError:
+        pass
+    finally:
+        del os.environ["AGENTPENTEST_STRICT_SSRF"]
+
+
+class _FakeReq:
+    """Enough of a handler to call Handler._same_origin unbound (no real socket)."""
+    def __init__(self, host, origin=None):
+        self.headers = {"Host": host, **({"Origin": origin} if origin else {})}
+        self.server = type("S", (), {"server_port": 8765})()
+
+
+def test_sec6_dashboard_refuses_cross_origin_post():
+    ok = Handler._same_origin(_FakeReq("127.0.0.1:8765"))                     # same-origin
+    assert ok
+    assert Handler._same_origin(_FakeReq("localhost:8765",
+                                         "http://localhost:8765"))            # matching Origin
+    assert not Handler._same_origin(_FakeReq("127.0.0.1:8765",
+                                             "https://evil.example"))         # CSRF
+    assert not Handler._same_origin(_FakeReq("attacker.com"))                 # DNS rebind
+
+
 if __name__ == "__main__":
     test_sec2_rejects_extra_out_of_scope_host()
     test_sec2_host_token_does_not_flag_files_or_flags()
     test_bug1_real_run_refuses_to_fake_recon()
     test_sec4_strict_fails_closed_on_unresolvable()
+    test_sec5_env_flag_flips_default_to_fail_closed()
+    test_sec6_dashboard_refuses_cross_origin_post()
     print("ok")

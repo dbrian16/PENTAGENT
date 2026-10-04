@@ -8,9 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # subfinder is Go tooling; grab the static release rather than the whole Go stack.
+# Pinned (not :latest) so the image is reproducible and a tampered/new upstream
+# release can't silently change what ships. Bump deliberately.
+ARG SUBFINDER_VERSION=2.16.0
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && curl -sSL -o /tmp/sf.zip \
-        https://github.com/projectdiscovery/subfinder/releases/latest/download/subfinder_linux_amd64.zip \
+        "https://github.com/projectdiscovery/subfinder/releases/download/v${SUBFINDER_VERSION}/subfinder_${SUBFINDER_VERSION}_linux_amd64.zip" \
     && (cd /usr/local/bin && python3 -c "import zipfile,sys; zipfile.ZipFile('/tmp/sf.zip').extractall()") \
     && chmod +x /usr/local/bin/subfinder && rm /tmp/sf.zip \
     && apt-get purge -y curl && rm -rf /var/lib/apt/lists/*
@@ -25,7 +28,8 @@ RUN useradd -m recon
 USER recon
 
 # Scope is injected at runtime, e.g. -e RECON_SCOPE=example.com. Empty = deny all.
-ENV RECON_SCOPE="" RECON_MCP_TRANSPORT="stdio"
+# The container has DNS, so fail CLOSED on a non-resolving target (SSRF guard).
+ENV RECON_SCOPE="" RECON_MCP_TRANSPORT="stdio" AGENTPENTEST_STRICT_SSRF="1"
 ENTRYPOINT ["python3", "-m", "agentpentest.mcp_server"]
 
 # Run isolated (host FS protected; outbound kept for recon):
