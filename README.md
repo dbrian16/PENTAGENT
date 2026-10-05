@@ -1,4 +1,4 @@
-# AI Agent Pentest
+# Autonomous Offensive Agent
 
 A research prototype that models an autonomous penetration test as a team of
 cooperating agents: they plan the next move, keep an external memory of every
