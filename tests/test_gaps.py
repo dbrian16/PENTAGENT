@@ -1,5 +1,4 @@
-"""Checks for the gap-closing additions: local LLM, persistence, run log.
-`python test_gaps.py`, offline, no Ollama needed."""
+"""Checks for the gap-closing additions: local LLM, persistence, run log."""
 import json
 import os
 import tempfile

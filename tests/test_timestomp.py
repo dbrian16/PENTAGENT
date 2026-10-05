@@ -1,4 +1,4 @@
-"""Tests for agentpentest.timestomp (T1070.006 — build-only simulation)."""
+"""Tests for agentpentest.timestomp (T1070.006 - build-only simulation)."""
 import json
 import sys
 import os
@@ -11,7 +11,7 @@ from agentpentest.timestomp import (
 )
 
 
-# ── stub reasoner ─────────────────────────────────────────────────────────────
+# stub reasoner
 
 class _StubReasoner:
     def __init__(self, response: str):
@@ -33,7 +33,7 @@ def _make_spec() -> StompSpec:
     )
 
 
-# ── tests ─────────────────────────────────────────────────────────────────────
+# tests
 
 def test_plan_stomp_happy():
     resp = json.dumps({

@@ -1,5 +1,4 @@
-"""throttle.py in isolation: RateLimiter sliding window, CircuitBreaker state machine,
-the target-distress heuristic, and Jitter (injected rng, no real sleep)."""
+"""throttle.py in isolation: RateLimiter sliding window, CircuitBreaker state machine."""
 from __future__ import annotations
 import random
 

@@ -24,7 +24,7 @@ agentpentest-ui = "agentpentest.webui:_cli"           # local web dashboard (loc
 packages = ["agentpentest"]
 
 [tool.setuptools.package-data]
-agentpentest = ["data/*.json"]
+agentpentest = ["data/*.json", "webui_static/*"]
 # RUN_DISABLED is intentionally NOT packaged: it is a machine-local build-only lock,
 # not something to bake into a wheel or the Kali image.
 

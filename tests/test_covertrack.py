@@ -81,9 +81,9 @@ def test_analyze_log_scrubbed_content_removes_ip_lines():
     reply = '{"lines_to_remove": [1, 2, 4], "rationale": "our IP"}'
     r = ScriptedReasoner(reply)
     plan = analyze_log(_spec(), r)
-    # lines 1, 2, 4 contain TARGET_IP — they must be gone
+    # lines 1, 2, 4 contain TARGET_IP - they must be gone
     assert TARGET_IP not in plan.scrubbed_content
-    # line 0 and 3 are unrelated — they must survive
+    # line 0 and 3 are unrelated - they must survive
     assert "192.168.1.1" in plan.scrubbed_content
     assert "203.0.113.9" in plan.scrubbed_content
 

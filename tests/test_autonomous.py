@@ -1,5 +1,4 @@
-"""Autonomous terminal mode: guardrails + the plan/execute/perceive loop.
-`PYTHONPATH=. python tests/test_autonomous.py`, offline, no Ollama, nothing runs."""
+"""Autonomous terminal mode: guardrails + the plan/execute/perceive loop."""
 from agentpentest import shellguard
 from agentpentest.autonomous import autoloop
 from agentpentest.llm import MockReasoner
@@ -84,6 +83,17 @@ def test_autoloop_noop_offline():
     executed = []
     tr = autoloop("x", SCOPE, MockReasoner(), lambda a, t: executed.append(1) or "")
     assert tr == [] and not executed                      # no model => no commands
+
+
+def test_sandbox_execute_unpacks_exec_full():
+    # Regression: exec_full returns (out, code); sandbox_execute must not expect 3.
+    from agentpentest.autonomous import sandbox_execute
+
+    class FakeSandbox:
+        def exec_full(self, argv):
+            return "stdout+stderr here", 0
+    ex = sandbox_execute(FakeSandbox())
+    assert ex(["nmap", "-sV", "t"], "t") == "stdout+stderr here"
 
 
 if __name__ == "__main__":

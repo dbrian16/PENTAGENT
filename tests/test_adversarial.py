@@ -1,5 +1,4 @@
-"""Phase 4 Red-vs-Blue: WAF simulator, multiplicative reward, adversarial loop.
-`PYTHONPATH=. python tests/test_adversarial.py`, offline, deterministic, runs nothing."""
+"""Phase 4 Red-vs-Blue: WAF simulator, multiplicative reward, adversarial loop."""
 import os
 import tempfile
 

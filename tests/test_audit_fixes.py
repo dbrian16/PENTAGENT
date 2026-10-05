@@ -1,12 +1,4 @@
-"""Runnable checks for the audit fixes. `python tests/test_audit_fixes.py`.
-
-Covers:
-  SEC-2  shellguard rejects a second, out-of-scope host in the command.
-  BUG-1  a real (non-mock) run refuses to fake recon when the binary is absent.
-  SEC-4  assert_external(strict=True) fails closed on an unresolvable host.
-  SEC-5  AGENTPENTEST_STRICT_SSRF=1 makes the default (no strict=) fail closed.
-  SEC-6  the web dashboard refuses cross-origin / foreign-Host POSTs (CSRF).
-"""
+"""Runnable checks for the audit fixes. `python tests/test_audit_fixes.py`."""
 import os
 
 from agentpentest import shellguard

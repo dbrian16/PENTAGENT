@@ -1,5 +1,4 @@
-"""Execution contract + forced decision schema (prompts.py).
-`PYTHONPATH=. python tests/test_prompts.py`, offline, nothing runs."""
+"""Execution contract + forced decision schema (prompts.py)."""
 from agentpentest import prompts
 from agentpentest.prompts import contract, parse_decision, normalize_phase
 

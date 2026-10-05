@@ -149,7 +149,7 @@ def test_obfuscate_script_returns_obfuscated_with_target():
 
 
 def test_obfuscate_script_falls_back_when_target_lost():
-    # LLM encodes the target away → fall back to original for safety
+    # LLM encodes the target away -> fall back to original for safety
     encoded_without_target = _fenced("_h = __import__('base64').b64decode(b'ZXZpbA==').decode()\n"
                                      "print('POC-OK: ' + _h)")
     r = ScriptedReasoner([encoded_without_target])
@@ -161,7 +161,7 @@ def test_obfuscate_script_falls_back_when_target_lost():
 def test_synthesize_poc_obfuscates_before_run():
     plain = f"print('POC-OK: {TARGET}')"
     obfed = f"_x = '{TARGET}'; print('POC-OK: ' + _x)"
-    # ask order: synth script → obfusc → (no fix needed)
+    # ask order: synth script -> obfusc -> (no fix needed)
     r = ScriptedReasoner([_fenced(plain), _fenced(obfed)])
     run = ScriptedRunner([RunResult(0, f"POC-OK: hit {TARGET}", "")])
     res = synthesize_poc(_spec(), r, run, obfuscate=True)

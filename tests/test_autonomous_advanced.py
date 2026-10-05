@@ -1,7 +1,4 @@
-"""autoloop's newer safety wiring: snapshot-guarded steps, Mode-3 PoC fallback,
-prompt-injection quarantine, and the target-safety throttle (rate limit + circuit
-breaker). All offline. Nothing here opens a socket or starts a container.
-"""
+"""autoloop's newer safety wiring: snapshot-guarded steps, Mode-3 PoC fallback."""
 from __future__ import annotations
 
 from agentpentest.autonomous import autoloop

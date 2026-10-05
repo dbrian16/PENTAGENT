@@ -108,6 +108,25 @@ High-impact tooling (Metasploit, credential dumpers, C2) is refused by that laun
 default. Pass `--allow-high-impact` to permit it (still one approval per command), on
 your own isolated lab.
 
+### Host safety — where the tools actually run
+
+The launcher protects **your own machine**, not just the target:
+
+- **It refuses to execute on Windows.** A Windows dev box has no container isolation, so
+  real runs happen only on your Linux/Kali lab. On Windows you get the simulation
+  (`agentpentest <domain>`) and nothing executes.
+- **Tools run inside an isolated `DockerSandbox` by default** — `--cap-drop ALL`,
+  `--security-opt no-new-privileges`, read-only root, no host bind mounts. A buggy or
+  prompt-injected tool cannot write your host filesystem or escalate. This needs Docker
+  on the box; install it first. `--image` picks the tool image (default
+  `kalilinux/kali-rolling`).
+- **`--unsafe-local-exec`** runs tools directly on the host with no isolation. It demands
+  a typed confirmation and is for a dedicated, disposable VM only — never your daily box.
+- **An active eBPF / BPF-LSM gate** (`ebpf_monitor.lsm_guard`) sits in front of the
+  executor and vetoes forbidden writes (`/var/run/secrets`, `/etc/shadow`, …), forbidden
+  spawns (`nc`, `dd`, `shred`, …) and off-scope egress **before** a command runs — a hard
+  limit that does not depend on the model obeying its prompt.
+
 ## 5b. Unlock real exploitation (proof-gated PoC)
 
 Recon and the terminal only *enumerate*. To let the agent actually *exploit*, add `--poc`:

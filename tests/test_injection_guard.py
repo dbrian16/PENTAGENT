@@ -1,7 +1,4 @@
-"""Prompt-injection quarantine: security.sanitize_for_prompt/flag_injection, and its
-wiring into executor.py's LLM perception fallback (the other place raw TARGET output
-reaches an LLM prompt, alongside autonomous.py, covered in test_autonomous_advanced.py).
-"""
+"""Prompt-injection quarantine: security.sanitize_for_prompt/flag_injection."""
 from __future__ import annotations
 
 from agentpentest.executor import Executor
@@ -44,8 +41,7 @@ class _EvilReasoner:
 
 
 class _FakeSandbox:
-    """Returns attacker-controlled, regex-unparseable output so the LLM perception
-    fallback (_empty(result) -> True) actually fires, carrying raw tool text."""
+    """Returns attacker-controlled, regex-unparseable output so the LLM perception."""
     def __init__(self, raw: str):
         self.raw = raw
 
