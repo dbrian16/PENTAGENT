@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentpentest"
+version = "0.1.0"
+description = "Agentic AI Pentesting framework. PEP loop, MCP toolbox, PTT/EGATS brain, multi-agent reporting. Build-only, self-hosted local AI, academic/research use only."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "All rights reserved, see LICENSE"}
+dependencies = []                     # core is stdlib-only
+
+[project.optional-dependencies]
+mcp = ["fastmcp>=2.0"]                # only the MCP server needs this
+
+[project.scripts]
+agentpentest = "agentpentest.campaign:_cli"          # full pipeline (simulation)
+agentpentest-recon = "agentpentest.orchestrator:_cli"  # Phase-1 recon loop
+agentpentest-view = "agentpentest.viewer:_cli"        # inspect a saved PTT / run log
+agentpentest-ui = "agentpentest.webui:_cli"           # local web dashboard (localhost)
+
+[tool.setuptools]
+packages = ["agentpentest"]
+
+[tool.setuptools.package-data]
+agentpentest = ["data/*.json"]
+# RUN_DISABLED is intentionally NOT packaged: it is a machine-local build-only lock,
+# not something to bake into a wheel or the Kali image.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

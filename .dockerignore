@@ -1,0 +1,7 @@
+agentpentest/RUN_DISABLED
+**/__pycache__
+*.pyc
+report.md
+*.jsonl
+run.json
+tests
