@@ -19,6 +19,7 @@ agentpentest = "agentpentest.campaign:_cli"          # full pipeline (simulation
 agentpentest-recon = "agentpentest.orchestrator:_cli"  # Phase-1 recon loop
 agentpentest-view = "agentpentest.viewer:_cli"        # inspect a saved PTT / run log
 agentpentest-ui = "agentpentest.webui:_cli"           # local web dashboard (localhost)
+agentpentest-lock = "agentpentest.lock:_cli"          # toggle RUN_DISABLED lock
 
 [tool.setuptools]
 packages = ["agentpentest"]
