@@ -49,3 +49,20 @@ def test_decide_reject_ignores_edit():
     t.join(timeout=2)
     assert done["ok"] is False
     assert argv == ["dig", "example.com"]
+
+
+def test_chat_context_carries_engagement_state():
+    """_chat_context must carry the question plainly and the target-derived state fenced."""
+    from agentpentest import webui
+    webui.APP.plan = {"target": "10.0.0.5",
+                      "steps": [{"action": "nmap -sV 10.0.0.5"}]}
+    webui.APP.recon = {"services": [{"port": 445, "name": "microsoft-ds"}]}
+    webui.APP.summary = {"findings": [{"title": "SMB exposed", "severity": "Medium"}]}
+    try:
+        out = webui._chat_context("what next?")
+    finally:
+        webui.APP.plan = webui.APP.recon = webui.APP.summary = None
+    assert out.startswith("Operator question: what next?")   # question is NOT fenced as untrusted
+    assert "UNTRUSTED TARGET OUTPUT" in out                  # state IS fenced
+    for needle in ("10.0.0.5", "nmap -sV 10.0.0.5", "445", "Medium"):
+        assert needle in out

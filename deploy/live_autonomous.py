@@ -10,12 +10,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import shutil
 import sys
+import time
 
 os.environ.setdefault("AGENTPENTEST_STRICT_SSRF", "1")
 
-from agentpentest import autonomous, covertrack, poc, timestomp
+from agentpentest import (autonomous, covertrack, knowledge, memorydb, poc,
+                          taskgraph, timestomp, tools)
 from agentpentest.config import Config
 from agentpentest.ebpf_monitor import EbpfMonitor, LsmPolicy, lsm_guard
 from agentpentest.llm import OllamaReasoner, parse_json_block
@@ -30,7 +33,8 @@ from agentpentest.throttle import CircuitBreaker, RateLimiter
 
 # high-impact tools need --allow-high-impact to run (still HITL)
 _HIGH_IMPACT = ("msfconsole", "msfvenom", "meterpreter", "mimikatz", "impacket",
-                "secretsdump", "crackmapexec", "nxc", "evil-winrm", "dd", "shred")
+                "secretsdump", "crackmapexec", "nxc", "netexec", "evil-winrm",
+                "hydra", "medusa", "dd", "shred")
 
 # hard-blocked even inside Docker — these can corrupt the host disk
 _FORBID_SPAWN = ("mkfs", "wipefs", "blkdiscard", "fdisk", "parted")
@@ -87,21 +91,26 @@ def build_executor(args):
 
 
 _ANALYZE_SYS = contract(
-    "You are a senior red-team analyst. Given recon facts about a target, propose up to 5 "
+    "You are a senior red-team analyst. Given recon facts about a target (and INTEL: "
+    "relevant MITRE techniques / CVE hints from the offline KB), propose up to 5 "
     "concrete exploitation hypotheses ranked by likelihood. "
     'Reply with strict JSON: {"hypotheses":[{"id":"h1","claim":"...","technique":"T1190",'
     '"priority":0.9,"evidence":"why exploitable"}]}'
 )
 
 _PLAN_SYS = contract(
-    "You are a penetration tester. Given a hypothesis and feedback from prior attempts, "
-    "propose ONE concrete next Kali command to test it. The target must appear in the command. "
-    'Reply with strict JSON: {"action":"<full command>","rationale":"why"}'
+    "You are a penetration tester. Given a hypothesis, prior-attempt feedback, and the "
+    "TOOLS catalog, propose ONE concrete next action to test it. "
+    'PREFER a typed tool: {"tool":"<name from TOOLS>","params":{...},"rationale":"why"} '
+    "- the system builds the exact command so you cannot mistype a flag. "
+    'Use {"action":"<full Kali command>","rationale":"why"} ONLY for a tool not in TOOLS. '
+    "The target must appear in the command or params."
 )
 
 
 def _llm_analyzer(reasoner, ctx: dict) -> list[Hypothesis]:
-    d = parse_json_block(reasoner.ask(_ANALYZE_SYS, json.dumps(ctx)) or "{}") or {}
+    enriched = {**ctx, "intel": knowledge.augment([ctx])}   # RAG: KB hints into the prompt
+    d = parse_json_block(reasoner.ask(_ANALYZE_SYS, json.dumps(enriched)) or "{}") or {}
     return [
         Hypothesis(h["id"], h["claim"], h.get("technique", ""),
                    float(h.get("priority", 0.5)), h.get("evidence", ""))
@@ -114,19 +123,63 @@ def _llm_planner(reasoner, scope: set):
     def plan(hyp: Hypothesis, feedback: list[str]) -> list[PlanStep]:
         user = json.dumps({"hypothesis": hyp.claim, "technique": hyp.technique,
                            "evidence": hyp.evidence, "feedback": feedback[-3:],
-                           "scope": sorted(scope)})
+                           "scope": sorted(scope), "tools": tools.catalog()})
         d = parse_json_block(reasoner.ask(_PLAN_SYS, user) or "{}") or {}
-        if "action" not in d:
-            return []
-        return [PlanStep(d["action"], d.get("rationale", ""))]
+        if d.get("tool"):                        # typed tool -> deterministic argv
+            try:
+                argv = tools.resolve(d["tool"], d.get("params") or {})
+                return [PlanStep(shlex.join(argv), d.get("rationale", ""))]
+            except (tools.ParamError, ValueError):
+                pass                             # fall through to a raw action if given
+        if "action" in d:
+            return [PlanStep(d["action"], d.get("rationale", ""))]
+        return []
     return plan
 
 
+def _proof_or_first_line(out: str) -> str:
+    """Pick a grounded evidence line: a proof marker if present, else the first line."""
+    for ln in out.splitlines():
+        if any(m in ln for m in ("PROOF:", "POC-OK:", "uid=", "root@")):
+            return ln
+    return next((ln for ln in out.splitlines() if ln.strip()), "")
+
+
 def _run_co_redteam(args, reasoner, sandbox, scope: set, rlog: RunLog) -> None:
-    """Run the multi-agent Co-RedTeam state machine instead of the flat autoloop."""
+    """Run the multi-agent Co-RedTeam state machine, persisting each attempt + grounded
+    evidence into canonical SQLite memory so the run is auditable like the flat loop."""
     _sbox = sandbox if sandbox is not None else LocalSandbox()
     ctx = {"target": args.target, "scope": sorted(scope), "goal": args.goal}
-    print(f"Co-RedTeam mode: LLM analyzer + planner, shellguard executor, proof-gated evaluator.")
+    print("Co-RedTeam mode: LLM analyzer + planner, shellguard executor, proof-gated evaluator.")
+
+    run_id = args.run_id or f"live-{int(time.time())}"
+    os.makedirs(args.mem_dir, exist_ok=True)
+    mem_path = os.path.join(args.mem_dir, f"{run_id}.sqlite")
+    mem = memorydb.MemoryDB(mem_path)
+    scope_list = sorted(scope) if scope else [args.target]
+    try:
+        mem.open_run(run_id, args.goal, scope_list)
+    except memorydb.MemoryError:
+        run_id = f"{run_id}-{int(time.time())}"
+        mem.open_run(run_id, args.goal, scope_list)
+
+    created: set = set()
+
+    def _persist_attempt(h, step, res) -> None:
+        tid = f"h-{h.id}"
+        if tid not in created:
+            try:
+                mem.add_task(run_id, taskgraph.Task(tid, taskgraph.TaskKind.TEST,
+                             args.target, h.claim[:200]))
+                created.add(tid)
+            except (taskgraph.PlanError, memorydb.MemoryError):
+                return
+        aid = mem.start_attempt(run_id, tid)
+        out = (res.stdout or "") + (("\n" + res.stderr) if res.stderr else "")
+        mem.add_observation(run_id, tid, aid, step.action[:200], out,
+                            _proof_or_first_line(out))
+        mem.finish_attempt(run_id, aid, "done" if res.ok else "failed", step.action[:200])
+
     team = CoRedTeam(
         analyzer=lambda c: _llm_analyzer(reasoner, c),
         planner=_llm_planner(reasoner, scope),
@@ -134,10 +187,27 @@ def _run_co_redteam(args, reasoner, sandbox, scope: set, rlog: RunLog) -> None:
         validator=shellguard_validator(),
         evaluator=default_evaluator,
         max_refine=args.max_steps,
+        on_attempt=_persist_attempt,
     )
     results = team.run(ctx)
     confirmed = [h for h in results if h.status.value == "confirmed"]
     blocked = [h for h in results if h.status.value == "blocked"]
+
+    # settle task statuses, then finish the run on grounded + confirmed evidence
+    for h in results:
+        tid = f"h-{h.id}"
+        if tid in created:
+            mem.set_status(run_id, tid, taskgraph.TaskStatus.DONE
+                           if h.status.value == "confirmed" else taskgraph.TaskStatus.FAILED)
+    grounded = {r["task_id"] for r in mem.grounded_observations(run_id)}
+    basis = sorted(grounded & {f"h-{h.id}" for h in confirmed})
+    if basis:
+        try:
+            mem.finish_run(run_id, basis)
+        except memorydb.MemoryError as e:
+            rlog.event(action="finish_skipped", reason=str(e)[:160])
+    mem.close()
+
     print(f"\nCo-RedTeam done. confirmed={len(confirmed)} blocked={len(blocked)}")
     for h in confirmed:
         rlog.event(action="co_redteam_confirmed", id=h.id, claim=h.claim,
@@ -147,6 +217,9 @@ def _run_co_redteam(args, reasoner, sandbox, scope: set, rlog: RunLog) -> None:
                    technique=h.technique, attempts=h.attempts)
     for msg in team.log:
         print(f"  {msg}")
+    print(f"Run memory: {mem_path}")
+    print(f"Audit it:   agentpentest-audit --db {mem_path} --run-id {run_id} "
+          "[--expected-flag 'FLAG{...}']")
 
 
 def main() -> None:
@@ -174,6 +247,10 @@ def main() -> None:
     ap.add_argument("--allow-high-impact", action="store_true",
                     help="permit msfconsole/sqlmap-class tools (still per-command HITL). "
                          "Your own isolated lab only.")
+    ap.add_argument("--run-id", default=None,
+                    help="id for the persisted SQLite run memory (default: live-<ts>)")
+    ap.add_argument("--mem-dir", default="runs",
+                    help="directory for the run's .sqlite canonical memory")
     ap.add_argument("--mode", choices=["auto", "co-redteam"], default="auto",
                     help="auto: flat autonomous terminal loop (default); "
                          "co-redteam: multi-agent hypothesis->plan->validate->execute->evaluate loop")
@@ -211,6 +288,17 @@ def main() -> None:
         return
 
     # --- default: flat autonomous terminal loop ---
+    run_id = args.run_id or f"live-{int(time.time())}"
+    os.makedirs(args.mem_dir, exist_ok=True)
+    mem_path = os.path.join(args.mem_dir, f"{run_id}.sqlite")
+    mem = memorydb.MemoryDB(mem_path)
+    scope_list = sorted(scope) if scope else [args.target]
+    try:
+        mem.open_run(run_id, args.goal, scope_list)
+    except memorydb.MemoryError:
+        run_id = f"{run_id}-{int(time.time())}"
+        mem.open_run(run_id, args.goal, scope_list)
+
     transcript = autonomous.autoloop(
         args.goal, scope, reasoner, execute,
         allow_internal=args.allow_internal, max_steps=args.max_steps,
@@ -219,8 +307,13 @@ def main() -> None:
         rate_limiter=RateLimiter(max_per_second=args.rate),
         breaker=CircuitBreaker(max_consecutive_failures=3),
         confirm=make_confirm(args.allow_high_impact),
+        memory=mem, run_id=run_id,
     )
+    mem.close()
     print(f"\nDone. {len(transcript)} step(s) ran. Audit log: {args.log}")
+    print(f"Run memory: {mem_path}")
+    print(f"Audit it:   agentpentest-audit --db {mem_path} --run-id {run_id} "
+          "[--expected-flag 'FLAG{...}']")
 
     if sandbox is not None and transcript:
         _live_cleanup(transcript, sandbox, reasoner, rlog)

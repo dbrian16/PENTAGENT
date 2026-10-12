@@ -20,6 +20,7 @@ agentpentest-recon = "agentpentest.orchestrator:_cli"  # Phase-1 recon loop
 agentpentest-view = "agentpentest.viewer:_cli"        # inspect a saved PTT / run log
 agentpentest-ui = "agentpentest.webui:_cli"           # local web dashboard (localhost)
 agentpentest-lock = "agentpentest.lock:_cli"          # toggle RUN_DISABLED lock
+agentpentest-audit = "agentpentest.audit:_cli"        # score a run's SQLite memory (read-only)
 
 [tool.setuptools]
 packages = ["agentpentest"]
