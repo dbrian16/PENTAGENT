@@ -13,6 +13,7 @@ import os
 import shlex
 import shutil
 import sys
+import threading
 import time
 
 os.environ.setdefault("AGENTPENTEST_STRICT_SSRF", "1")
@@ -84,7 +85,16 @@ def build_executor(args):
         return autonomous.sandbox_execute(LocalSandbox()), None
 
     if not shutil.which("docker"):
-        print("[warn] Docker not found — falling back to LocalSandbox (no container isolation).")
+        print("=" * 70)
+        print("WARNING: Docker not found — no container isolation available.")
+        print("All pentest tools will run DIRECTLY on THIS host with no sandboxing.")
+        print("Use ONLY on a dedicated, disposable VM you own and can destroy.")
+        print("=" * 70)
+        try:
+            if input("Type 'I UNDERSTAND' to proceed without Docker: ").strip() != "I UNDERSTAND":
+                raise SystemExit("aborted.")
+        except EOFError:
+            raise SystemExit("aborted (no confirmation).")
         return autonomous.sandbox_execute(LocalSandbox()), None
     sandbox = SnapshotSandbox(image=args.image, runner=docker_cli())
     return autonomous.sandbox_execute(sandbox), sandbox
@@ -164,16 +174,21 @@ def _run_co_redteam(args, reasoner, sandbox, scope: set, rlog: RunLog) -> None:
         mem.open_run(run_id, args.goal, scope_list)
 
     created: set = set()
+    _created_lock = threading.Lock()
 
     def _persist_attempt(h, step, res) -> None:
         tid = f"h-{h.id}"
-        if tid not in created:
-            try:
-                mem.add_task(run_id, taskgraph.Task(tid, taskgraph.TaskKind.TEST,
-                             args.target, h.claim[:200]))
-                created.add(tid)
-            except (taskgraph.PlanError, memorydb.MemoryError):
-                return
+        # Guard the check-then-add with a lock so concurrent on_attempt callbacks
+        # from different threads cannot both pass the 'tid not in created' check and
+        # both call add_task (which would raise PlanError on the duplicate id).
+        with _created_lock:
+            if tid not in created:
+                try:
+                    mem.add_task(run_id, taskgraph.Task(tid, taskgraph.TaskKind.TEST,
+                                 args.target, h.claim[:200]))
+                    created.add(tid)
+                except (taskgraph.PlanError, memorydb.MemoryError):
+                    return
         aid = mem.start_attempt(run_id, tid)
         out = (res.stdout or "") + (("\n" + res.stderr) if res.stderr else "")
         mem.add_observation(run_id, tid, aid, step.action[:200], out,
