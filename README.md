@@ -89,12 +89,12 @@ Needs: Kali/Linux, Docker running, Ollama running (`ollama serve`).
 
 ## Safety
 
-- **Run lock** — all CLIs exit immediately while `agentpentest/RUN_DISABLED` exists. Use `agentpentest-lock off` to remove it.
-- **Injected executors** — every path that touches a real target takes an injected function; simulation mode wires in no-ops and dice oracles.
-- **Self-hosted LLM only** — Ollama only. Cloud API hosts are refused in code.
-- **Guards in code** — scope/SSRF checks, destructive-binary denylist, argv-only (no shell string), rate limiter, circuit breaker, snapshot/rollback sandbox, BPF-LSM policy gate.
-- **Loop-trap guards** — a local environment fault (missing tool/module, bad permission) is recorded as a FAILED step with no evidence (not a poisoned "finding") and never retried; a per-target circuit breaker abandons one dead host instead of ending the whole run, with a higher global backstop.
-- **Prompt injection quarantine** — raw tool output is sanitized before it reaches the LLM. Steering phrases are flagged and logged.
+- **Run lock** : all CLIs exit immediately while `agentpentest/RUN_DISABLED` exists. Use `agentpentest-lock off` to remove it.
+- **Injected executors** : every path that touches a real target takes an injected function; simulation mode wires in no-ops and dice oracles.
+- **Self-hosted LLM only** : Ollama only. Cloud API hosts are refused in code.
+- **Guards in code** : scope/SSRF checks, destructive-binary denylist, argv-only (no shell string), rate limiter, circuit breaker, snapshot/rollback sandbox, BPF-LSM policy gate.
+- **Loop-trap guards** : a local environment fault (missing tool/module, bad permission) is recorded as a FAILED step with no evidence (not a poisoned "finding") and never retried; a per-target circuit breaker abandons one dead host instead of ending the whole run, with a higher global backstop.
+- **Prompt injection quarantine** : raw tool output is sanitized before it reaches the LLM. Steering phrases are flagged and logged.
 
 ## Requirements
 
