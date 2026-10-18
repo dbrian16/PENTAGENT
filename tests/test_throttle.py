@@ -3,7 +3,36 @@ from __future__ import annotations
 import random
 
 from agentpentest.throttle import (CircuitBreaker, CircuitOpenError, Jitter,
-                                   RateLimitError, RateLimiter, looks_like_target_failure)
+                                   PerTargetBreaker, RateLimitError, RateLimiter,
+                                   looks_like_env_error, looks_like_target_failure)
+
+
+def test_env_error_detection_distinct_from_target_failure():
+    for s in ("bash: nuclei: command not found",
+              "ModuleNotFoundError: No module named 'impacket'",
+              "nmap: error while loading shared libraries: libpcap.so",
+              "/bin/sh: 1: gobuster: not found",
+              "Permission denied"):
+        assert looks_like_env_error(s), s
+        assert not looks_like_target_failure(s) or "denied" in s.lower()
+    # target distress is NOT an env error
+    for s in ("Connection refused", "Nmap: 0 hosts up", "503 Service Unavailable"):
+        assert not looks_like_env_error(s), s
+
+
+def test_per_target_breaker_abandons_one_target_not_the_others():
+    b = PerTargetBreaker(max_consecutive_failures=3)
+    for _ in range(3):
+        b.record("a.example.com", failed=True)
+    assert b.is_dead("a.example.com")
+    assert not b.is_dead("b.example.com")
+    # a healthy response on a still-live target clears its streak
+    b.record("b.example.com", failed=True)
+    b.record("b.example.com", failed=True)
+    b.record("b.example.com", failed=False)
+    b.record("b.example.com", failed=True)
+    assert not b.is_dead("b.example.com")
+    assert b.dead_targets() == {"a.example.com"}
 
 
 def test_rate_limiter_allows_up_to_the_cap():

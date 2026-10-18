@@ -16,9 +16,10 @@ PENTAGENT is an AI-driven penetration testing framework that runs a full red-tea
 
 ## What it does
 
-- **Recon** — Planner/Executor/Perceptor loop. Raw tool output is distilled into structured state before the LLM ever reads it.
+- **Recon** — Planner/Executor/Perceptor loop. Raw tool output is distilled into structured state before the LLM ever reads it. Typed tools are parsed deterministically (zero LLM tokens); for raw commands the Perceptor digests large dumps to head + tail + signal lines so a lone `200` buried after thousands of `404`s is never truncated away.
 - **Attack tree (PTT + EGATS)** — External memory holds the campaign outside the model. The search engine expands the best node, records outcomes, abandons dead ends, and seeds follow-on techniques after each confirmed finding.
 - **Swarm debate** — Multiple agent roles propose competing hypotheses. Agreement is required before a finding enters the tree.
+- **Deterministic verification (Tier-2)** — Web-bug verdicts come from pure-math verifiers, never the LLM's read of a response: an algebraic canary for SSTI, identity-set differential for IDOR/BOLA, OLS regression for blind timing, and an out-of-band canary listener for blind SSRF/RCE/XXE. The planner emits a controlled `probe` directive; the collector gathers a comparison-set and the verifier rules CONFIRMED / FALSE_POSITIVE / INCONCLUSIVE.
 - **Red vs Blue** — A deterministic WAF/SOC scorer (OWASP-CRS, four paranoia levels) rates how noisy each action would be. The Red agent learns from failures via Reflexion and re-plans stealthier variants.
 - **PoC synthesis** — When no existing Kali tool fits, the LLM writes a single-use script, runs it in a sandbox, and self-debugs on failure. Only accepted on a `POC-OK:` proof line + exit 0.
 - **Report** — Surviving attack path becomes a MITRE ATT&CK-mapped report with CVSS 4.0 scores, EPSS/KEV threat intel, stealth ratings, PoC, and remediation. Markdown or JSON.
@@ -30,9 +31,12 @@ PENTAGENT is an AI-driven penetration testing framework that runs a full red-tea
 | `orchestrator`, `planner`, `executor`, `perceptor` | Recon loop |
 | `ptt`, `brain` | Penetration Testing Tree + EGATS search |
 | `swarm` | Multi-role debate and consensus |
+| `probe`, `verifiers`, `oob` | Tier-2 comparison-set collectors + deterministic math verifiers + out-of-band canary listener |
 | `adversarial`, `blueteam`, `reward` | Red vs Blue stealth loop |
 | `poc` | LLM-synthesized proof-of-concept scripts |
 | `statemachine` | Co-RedTeam: Analysis → Planner → Validation → Execution → Evaluation |
+| `lateral`, `persistence`, `chain` | Rule-based lateral-movement argv builder, host persistence (T1053/T1547) planner, MITRE follow-on chaining |
+| `attack_graph` | CVSS/EPSS/KEV-weighted path scoring + choke-point / target decision intelligence |
 | `knowledge_graph`, `asset_vault` | STIX 2.1 campaign graph; credentials as vault refs (never plaintext to LLM) |
 | `experience_replay` | Cross-campaign replay buffer + JitRL re-ranking |
 | `evidence` | Evidence Ladder (G1→E1) anti-hallucination gates + CVSS 4.0 |
@@ -89,6 +93,7 @@ Needs: Kali/Linux, Docker running, Ollama running (`ollama serve`).
 - **Injected executors** — every path that touches a real target takes an injected function; simulation mode wires in no-ops and dice oracles.
 - **Self-hosted LLM only** — Ollama only. Cloud API hosts are refused in code.
 - **Guards in code** — scope/SSRF checks, destructive-binary denylist, argv-only (no shell string), rate limiter, circuit breaker, snapshot/rollback sandbox, BPF-LSM policy gate.
+- **Loop-trap guards** — a local environment fault (missing tool/module, bad permission) is recorded as a FAILED step with no evidence (not a poisoned "finding") and never retried; a per-target circuit breaker abandons one dead host instead of ending the whole run, with a higher global backstop.
 - **Prompt injection quarantine** — raw tool output is sanitized before it reaches the LLM. Steering phrases are flagged and logged.
 
 ## Requirements

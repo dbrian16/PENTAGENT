@@ -19,7 +19,7 @@ import time
 os.environ.setdefault("AGENTPENTEST_STRICT_SSRF", "1")
 
 from agentpentest import (autonomous, covertrack, knowledge, memorydb, poc,
-                          taskgraph, timestomp, tools)
+                          probe, report, taskgraph, timestomp, tools)
 from agentpentest.config import Config
 from agentpentest.ebpf_monitor import EbpfMonitor, LsmPolicy, lsm_guard
 from agentpentest.llm import OllamaReasoner, parse_json_block
@@ -28,9 +28,10 @@ from agentpentest.runlog import RunLog
 from agentpentest.safety import guard
 from agentpentest.sandbox import DockerSandbox, LocalSandbox, SnapshotSandbox, docker_cli
 from agentpentest.statemachine import (CoRedTeam, Hypothesis, PlanStep,
-                                       default_evaluator, shellguard_executor,
+                                       ValidationResult, default_evaluator,
+                                       deterministic_evaluator, shellguard_executor,
                                        shellguard_validator)
-from agentpentest.throttle import CircuitBreaker, RateLimiter
+from agentpentest.throttle import CircuitBreaker, PerTargetBreaker, RateLimiter
 
 # high-impact tools need --allow-high-impact to run (still HITL)
 _HIGH_IMPACT = ("msfconsole", "msfvenom", "meterpreter", "mimikatz", "impacket",
@@ -114,6 +115,13 @@ _PLAN_SYS = contract(
     'PREFER a typed tool: {"tool":"<name from TOOLS>","params":{...},"rationale":"why"} '
     "- the system builds the exact command so you cannot mistype a flag. "
     'Use {"action":"<full Kali command>","rationale":"why"} ONLY for a tool not in TOOLS. '
+    'For a math-verifiable web bug, emit a PROBE instead of a shell tool: '
+    '{"probe":"ssti|idor|timing|oob","params":{...},"rationale":"why"} - the system runs '
+    "a controlled comparison-set and a DETERMINISTIC verifier (no LLM, no substring) "
+    "returns the verdict. probe params carry an 'inject' descriptor, e.g. "
+    '{"mode":"query","url":"http://host/page","param":"q"}; ssti also needs factor_a/'
+    "factor_b, timing needs delays, idor needs victim_request/attacker_own_request/owner/"
+    "attacker, oob injects a callback URL for blind SSRF/RCE/XXE. "
     "The target must appear in the command or params."
 )
 
@@ -135,6 +143,9 @@ def _llm_planner(reasoner, scope: set):
                            "evidence": hyp.evidence, "feedback": feedback[-3:],
                            "scope": sorted(scope), "tools": tools.catalog()})
         d = parse_json_block(reasoner.ask(_PLAN_SYS, user) or "{}") or {}
+        if d.get("probe"):                       # Tier-2 math-verified web probe
+            directive = json.dumps({"probe": d["probe"], "params": d.get("params") or {}})
+            return [PlanStep(directive, d.get("rationale", ""), kind="probe")]
         if d.get("tool"):                        # typed tool -> deterministic argv
             try:
                 argv = tools.resolve(d["tool"], d.get("params") or {})
@@ -175,9 +186,14 @@ def _run_co_redteam(args, reasoner, sandbox, scope: set, rlog: RunLog) -> None:
 
     created: set = set()
     _created_lock = threading.Lock()
+    proof_map: dict = {}        # hypothesis id -> structured_data (with stashed proof)
 
     def _persist_attempt(h, step, res) -> None:
         tid = f"h-{h.id}"
+        # deterministic_evaluator stashes the math proof on res.structured_data before
+        # on_attempt runs, so capture it here for the quantitative report section.
+        if res.structured_data and "proof" in res.structured_data:
+            proof_map[h.id] = res.structured_data
         # Guard the check-then-add with a lock so concurrent on_attempt callbacks
         # from different threads cannot both pass the 'tid not in created' check and
         # both call add_task (which would raise PlanError on the duplicate id).
@@ -195,12 +211,27 @@ def _run_co_redteam(args, reasoner, sandbox, scope: set, rlog: RunLog) -> None:
                             _proof_or_first_line(out))
         mem.finish_attempt(run_id, aid, "done" if res.ok else "failed", step.action[:200])
 
+    # Composite executor/validator: a "probe" PlanStep is a math-verified web probe
+    # (scope-gated inside the HttpSampler), everything else is a shell command gated by
+    # shellguard. This is what lets deterministic_evaluator actually reach the verifiers.
+    _shell_exec = shellguard_executor(_sbox, scope=scope)
+    _probe_exec = probe.probe_executor(scope, allow_internal=args.allow_internal)
+    _shell_val = shellguard_validator()
+
+    def _exec(step):
+        return _probe_exec(step) if step.kind == "probe" else _shell_exec(step)
+
+    def _val(step):
+        if step.kind == "probe":
+            return ValidationResult(True, "probe: scope-gated inside the sampler")
+        return _shell_val(step)
+
     team = CoRedTeam(
         analyzer=lambda c: _llm_analyzer(reasoner, c),
         planner=_llm_planner(reasoner, scope),
-        executor=shellguard_executor(_sbox, scope=scope),
-        validator=shellguard_validator(),
-        evaluator=default_evaluator,
+        executor=_exec,
+        validator=_val,
+        evaluator=deterministic_evaluator,
         max_refine=args.max_steps,
         on_attempt=_persist_attempt,
     )
@@ -223,6 +254,13 @@ def _run_co_redteam(args, reasoner, sandbox, scope: set, rlog: RunLog) -> None:
             rlog.event(action="finish_skipped", reason=str(e)[:160])
     mem.close()
 
+    # quantitative Markdown report: the hypothesis table + the math-proof block for each
+    # confirmed finding (empty proof block for shell-confirmed ones with no comparison-set).
+    report_md = report.format_co_redteam_results(results, proof_map=proof_map)
+    report_path = os.path.join(args.mem_dir, f"{run_id}.co-redteam.md")
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(report_md)
+
     print(f"\nCo-RedTeam done. confirmed={len(confirmed)} blocked={len(blocked)}")
     for h in confirmed:
         rlog.event(action="co_redteam_confirmed", id=h.id, claim=h.claim,
@@ -233,6 +271,7 @@ def _run_co_redteam(args, reasoner, sandbox, scope: set, rlog: RunLog) -> None:
     for msg in team.log:
         print(f"  {msg}")
     print(f"Run memory: {mem_path}")
+    print(f"Co-RedTeam report: {report_path}")
     print(f"Audit it:   agentpentest-audit --db {mem_path} --run-id {run_id} "
           "[--expected-flag 'FLAG{...}']")
 
@@ -320,7 +359,10 @@ def main() -> None:
         runlog=rlog,
         poc_run=poc_run, max_poc_fix=args.poc_fix,
         rate_limiter=RateLimiter(max_per_second=args.rate),
-        breaker=CircuitBreaker(max_consecutive_failures=3),
+        # per-target breaker abandons a single dead host early (3 strikes); the global
+        # breaker is a higher backstop that stops a run where everything is failing.
+        breaker=CircuitBreaker(max_consecutive_failures=8),
+        target_breaker=PerTargetBreaker(max_consecutive_failures=3),
         confirm=make_confirm(args.allow_high_impact),
         memory=mem, run_id=run_id,
     )
