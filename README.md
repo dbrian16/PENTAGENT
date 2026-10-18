@@ -2,7 +2,7 @@
 
 # PENTAGENT
 
-**Autonomous AI red-team agent — simulation and live modes.**
+**Autonomous AI red-team agent: simulation and live modes.**
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Core](https://img.shields.io/badge/core-stdlib_only-success.svg)](#requirements)
@@ -16,13 +16,13 @@ PENTAGENT is an AI-driven penetration testing framework that runs a full red-tea
 
 ## What it does
 
-- **Recon** — Planner/Executor/Perceptor loop. Raw tool output is distilled into structured state before the LLM ever reads it. Typed tools are parsed deterministically (zero LLM tokens); for raw commands the Perceptor digests large dumps to head + tail + signal lines so a lone `200` buried after thousands of `404`s is never truncated away.
+- **Recon** : Planner/Executor/Perceptor loop. Raw tool output is distilled into structured state before the LLM ever reads it. Typed tools are parsed deterministically (zero LLM tokens); for raw commands the Perceptor digests large dumps to head + tail + signal lines so a lone `200` buried after thousands of `404`s is never truncated away.
 - **Attack tree (PTT + EGATS)** — External memory holds the campaign outside the model. The search engine expands the best node, records outcomes, abandons dead ends, and seeds follow-on techniques after each confirmed finding.
-- **Swarm debate** — Multiple agent roles propose competing hypotheses. Agreement is required before a finding enters the tree.
+- **Swarm debate** : Multiple agent roles propose competing hypotheses. Agreement is required before a finding enters the tree.
 - **Deterministic verification (Tier-2)** — Web-bug verdicts come from pure-math verifiers, never the LLM's read of a response: an algebraic canary for SSTI, identity-set differential for IDOR/BOLA, OLS regression for blind timing, and an out-of-band canary listener for blind SSRF/RCE/XXE. The planner emits a controlled `probe` directive; the collector gathers a comparison-set and the verifier rules CONFIRMED / FALSE_POSITIVE / INCONCLUSIVE.
-- **Red vs Blue** — A deterministic WAF/SOC scorer (OWASP-CRS, four paranoia levels) rates how noisy each action would be. The Red agent learns from failures via Reflexion and re-plans stealthier variants.
-- **PoC synthesis** — When no existing Kali tool fits, the LLM writes a single-use script, runs it in a sandbox, and self-debugs on failure. Only accepted on a `POC-OK:` proof line + exit 0.
-- **Report** — Surviving attack path becomes a MITRE ATT&CK-mapped report with CVSS 4.0 scores, EPSS/KEV threat intel, stealth ratings, PoC, and remediation. Markdown or JSON.
+- **Red vs Blue** : A deterministic WAF/SOC scorer (OWASP-CRS, four paranoia levels) rates how noisy each action would be. The Red agent learns from failures via Reflexion and re-plans stealthier variants.
+- **PoC synthesis** : When no existing Kali tool fits, the LLM writes a single-use script, runs it in a sandbox, and self-debugs on failure. Only accepted on a `POC-OK:` proof line + exit 0.
+- **Report** : Surviving attack path becomes a MITRE ATT&CK-mapped report with CVSS 4.0 scores, EPSS/KEV threat intel, stealth ratings, PoC, and remediation. Markdown or JSON.
 
 ## Architecture
 
