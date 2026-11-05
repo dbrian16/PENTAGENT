@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentpentest"
+name = "popperstrike"
 version = "0.1.0"
-description = "Agentic AI Pentesting framework. PEP loop, MCP toolbox, PTT/EGATS brain, multi-agent reporting. Build-only, self-hosted local AI, academic/research use only."
+description = "PopperStrike: Empirical & Verifiable Agentic Offensive Security. Karl Popper Falsification Engine, PTT/EGATS brain, FastMCP, and Deterministic Tier-2 Verifiers."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "All rights reserved, see LICENSE"}

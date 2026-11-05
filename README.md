@@ -1,25 +1,58 @@
-# Pentagent
+# PopperStrike
 
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Core Dependencies](https://img.shields.io/badge/dependencies-stdlib--only-green.svg)](pyproject.toml)
 [![Protocol](https://img.shields.io/badge/FastMCP-2.0+-purple.svg)](https://github.com/jlowin/fastmcp)
 [![Tests](https://img.shields.io/badge/tests-485%20passed%20(100%25)-brightgreen.svg)](tests/)
 [![MITRE ATT&CK](https://img.shields.io/badge/mapped--to-MITRE%20ATT%26CK-red.svg)](https://attack.mitre.org/)
+[![Epistemic Standard](https://img.shields.io/badge/epistemology-Karl%20Popper%20Falsification-darkred.svg)](#the-popperian-paradigm)
 [![License](https://img.shields.io/badge/license-Research%20%2F%20Educational-lightgrey.svg)](LICENSE)
 
-An agentic penetration testing framework engineered for structured, verifiable offensive security workflows.
+> *"No matter how many instances of white swans we have observed, this does not justify the conclusion that all swans are white."*  
+> — **Sir Karl Popper**, *The Logic of Scientific Discovery*
 
-Pentagent couples tree-search campaign planning (PTT/EGATS) with deterministic mathematical verification, an execution sandbox, and a native standard-library web scanner. Instead of trusting raw LLM text generation to evaluate vulnerabilities, Pentagent treats the model strictly as an untrusted reasoning worker and requires all findings to satisfy mathematical and protocol-level proofs before reporting.
+**PopperStrike** is an agentic offensive security and automated penetration testing framework built upon the philosophy of **Empirical Falsificationism**. 
+
+Traditional AI security agents operate on naive confirmation bias — they trust generative LLMs to "evaluate" vulnerabilities, leading to rampant hallucinations, false positives, and context exhaustion. **PopperStrike** fundamentally changes the paradigm: it treats LLMs strictly as **untrusted hypothesis generators**. Every proposed vulnerability must endure deterministic mathematical refutation and empirical counter-proofs before it can be admitted to the audit record.
+
+---
+
+## The Popperian Paradigm: Zero-Hallucination Security
+
+In classical epistemology, Karl Popper proved that empirical hypotheses can never be conclusively verified by accumulating supporting evidence; they can only be corroborated by **surviving rigorous, determined attempts at falsification**.
+
+PopperStrike embeds this exact philosophy into automated red teaming:
+
+```
+┌────────────────────────────────────────────────────────┐
+│ 1. Speculative Hypothesis (Untrusted LLM Reasoning)    │
+│    "Target /api/v1/user may have Time-Based SQLi"      │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│ 2. The Falsification Crucible (Tier-2 Verifiers)       │
+│    • Attempt to refute via OLS Linear Regression       │
+│    • Stress-test with Algebraic Canary (A * B)         │
+│    • Prove boundary counterfactuals & Negative Control │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────┴─────────────┐
+             ▼                           ▼
+    [Refuted / Hallucination]   [Survives Falsification]
+    • Prune branch in EGATS     • Escalate on Evidence Ladder
+    • Zero alert fatigue        • Corroborated Bug (E1 Certified)
+```
 
 ---
 
 ## Architecture Overview
 
-Traditional LLM security wrappers suffer from two fatal flaws:
-1. **Hallucination & False Positives**: Generative models frequently mistake custom 404 pages, reflected input, or generic application errors for high-severity vulnerabilities.
-2. **Context Window Exhaustion**: Multi-stage penetration tests generate massive volumes of network logs, which quickly exceed model context limits and cause memory degradation.
+PopperStrike couples tree-search campaign planning (PTT/EGATS) with deterministic mathematical verification, an execution sandbox, and a native standard-library web scanner:
 
-Pentagent addresses these issues by decoupling tactical decision-making from model context, routing findings through deterministic mathematical verifiers, and sandboxing execution within strict safety boundaries.
+1. **Elimination of Hallucinations**: Speculative claims from LLMs are filtered through mathematical verification (OLS timing regression, algebraic canaries, differential identity sets) rather than prompt agreement.
+2. **Context Window Decoupling**: Tactical state is recorded in an external graph structure (PTT), eliminating token degradation during long-horizon campaigns.
+3. **Fail-Closed Safety Enclave**: Execution is quarantined by strict CIDR scope guards, tokenized command sanitizers, and target distress circuit breakers.
 
 ```mermaid
 flowchart TD
@@ -89,7 +122,7 @@ The core engine runs with standard-library Python without requiring third-party 
 
 ## CLI Reference
 
-Pentagent installs dedicated command-line utilities for modular workflows:
+PopperStrike installs dedicated command-line utilities for modular workflows:
 
 | Utility | Description | Source |
 |---|---|---|
@@ -117,8 +150,8 @@ Pentagent installs dedicated command-line utilities for modular workflows:
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/dbrian16/PENTAGENT.git
-cd PENTAGENT
+git clone https://github.com/dbrian16/PopperStrike.git
+cd PopperStrike
 
 # Create a virtual environment
 python -m venv .venv
@@ -193,7 +226,7 @@ agentpentest-pci --demo --json
 ```
 
 ### 5. Local Web Dashboard
-Pentagent includes an embedded, dependency-free dashboard served via `http.server`:
+PopperStrike includes an embedded, dependency-free dashboard served via `http.server`:
 
 ```bash
 # Start local dashboard
@@ -209,7 +242,7 @@ Access the control interface at `http://127.0.0.1:8765` to inspect active trees,
 ## Live Lab Deployments (Authorized Targets Only)
 
 > [!WARNING]
-> Live testing requires explicit, documented authorization. Never point Pentagent at systems or networks without written permission and an agreed Rules of Engagement (RoE).
+> Live testing requires explicit, documented authorization. Never point PopperStrike at systems or networks without written permission and an agreed Rules of Engagement (RoE).
 
 ### 1. Disengage the Safety Run Lock
 By default, live operations exit with code `3` if `agentpentest/RUN_DISABLED` is present.
@@ -226,7 +259,7 @@ agentpentest-lock on
 ```
 
 ### 2. Configure Reasoning Backend
-Pentagent defaults to local models via Ollama to prevent leaking sensitive target intelligence.
+PopperStrike defaults to local models via Ollama to prevent leaking sensitive target intelligence.
 
 ```bash
 # Option A: Local Ollama (Recommended)
@@ -264,7 +297,7 @@ python deploy/live_autonomous.py 192.168.1.50 \
 
 ## Model Context Protocol (FastMCP)
 
-Pentagent implements the open **Model Context Protocol (MCP)**, allowing external AI agents (such as Claude Desktop or custom agents) to securely invoke its sandboxed tooling.
+PopperStrike implements the open **Model Context Protocol (MCP)**, allowing external AI agents (such as Claude Desktop or custom agents) to securely invoke its sandboxed tooling.
 
 ### Start the MCP Server
 ```bash
@@ -333,7 +366,7 @@ All 485 tests run without external dependencies and validate:
 
 ## Legal & Ethical Disclaimer
 
-Pentagent is developed exclusively for authorized penetration testing, defensive security assessments, and academic research.
+PopperStrike is developed exclusively for authorized penetration testing, defensive security assessments, and academic research.
 
 * Performing unauthorized security scans or exploitation against third-party systems without prior explicit written authorization is illegal and violates local, national, and international laws (including the US Computer Fraud and Abuse Act - 18 U.S.C. § 1030).
 * The maintainers assume no liability and are not responsible for any misuse, unauthorized activity, or operational disruption caused by this software.
